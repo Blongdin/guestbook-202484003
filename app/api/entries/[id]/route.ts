@@ -1,14 +1,12 @@
 import { deleteEntry, updateEntryMessage } from "@/lib/entries";
-import { NOT_FOUND, outcomeError, readJson, serverError } from "@/lib/http";
+import { outcomeError, readJson, serverError } from "@/lib/http";
 import { parseId, validateDelete, validateUpdate } from "@/lib/validation";
 
 type Ctx = RouteContext<"/api/entries/[id]">;
 
-const notFound = () => Response.json({ error: NOT_FOUND }, { status: 404 });
-
 export async function PATCH(request: Request, ctx: Ctx) {
   const id = parseId((await ctx.params).id);
-  if (id === null) return notFound();
+  if (id === null) return outcomeError("not_found");
   const input = validateUpdate(await readJson(request));
   if (!input.ok) return Response.json({ error: input.error }, { status: 400 });
   try {
@@ -22,7 +20,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
 
 export async function DELETE(request: Request, ctx: Ctx) {
   const id = parseId((await ctx.params).id);
-  if (id === null) return notFound();
+  if (id === null) return outcomeError("not_found");
   const input = validateDelete(await readJson(request));
   if (!input.ok) return Response.json({ error: input.error }, { status: 400 });
   try {

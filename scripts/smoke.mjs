@@ -35,24 +35,25 @@ console.log(`smoke: ${BASE}`);
 const bad = await call("POST", "/api/entries", { name: "   ", message: "hi", password: PASSWORD });
 check("1. POST empty name -> 400", bad.status === 400 && typeof bad.json?.error === "string", bad);
 
-// 2. create
-const created = await call("POST", "/api/entries", {
-  name: "smoke",
-  message: `smoke test ${new Date().toISOString()}`,
-  password: PASSWORD,
-});
-check("2. POST valid -> 201", created.status === 201 && Number.isInteger(created.json?.id), created);
-check("2. POST response has no password", !hasHash(created.json), created.json);
-const id = created.json?.id;
-
-// 3. list shows it first
-const list = await call("GET", "/api/entries");
-check("3. GET -> 200 array", list.status === 200 && Array.isArray(list.json), list.status);
-check("3. new entry is first", list.json?.[0]?.id === id, list.json?.[0]);
-check("3. list has no password", !hasHash(list.json));
-
+let id;
 let deleted = false;
 try {
+  // 2. create
+  const created = await call("POST", "/api/entries", {
+    name: "smoke",
+    message: `smoke test ${new Date().toISOString()}`,
+    password: PASSWORD,
+  });
+  check("2. POST valid -> 201", created.status === 201 && Number.isInteger(created.json?.id), created);
+  check("2. POST response has no password", !hasHash(created.json), created.json);
+  id = created.json?.id;
+
+  // 3. list shows it first
+  const list = await call("GET", "/api/entries");
+  check("3. GET -> 200 array", list.status === 200 && Array.isArray(list.json), list.status);
+  check("3. new entry is first", list.json?.[0]?.id === id, list.json?.[0]);
+  check("3. list has no password", !hasHash(list.json));
+
   // 4. wrong password cannot update
   const original = created.json?.message;
   const wrongPatch = await call("PATCH", `/api/entries/${id}`, { message: "hacked", password: "wrong-pass" });
