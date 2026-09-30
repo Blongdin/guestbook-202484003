@@ -6,9 +6,21 @@ import { formatWrittenAt } from "@/lib/format";
 import { LIMITS } from "@/lib/validation";
 
 const inputClass =
-  "w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500";
+  "w-full rounded-xl bg-field px-4 py-3 text-[15px] text-ink placeholder:text-ink-3 outline-none ring-brand transition focus:ring-2";
 const buttonClass =
-  "rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50";
+  "rounded-xl bg-brand px-4 py-3 text-[15px] font-semibold text-white transition hover:bg-brand-strong active:scale-[0.98] disabled:opacity-40";
+const ghostButtonClass =
+  "shrink-0 rounded-xl bg-field px-4 py-3 text-[15px] font-semibold text-ink-2 transition hover:bg-line active:scale-[0.98]";
+const errorClass = "text-[13px] font-medium text-rise";
+
+const AVATAR_COLORS = ["bg-[#3182f6]", "bg-[#f04452]", "bg-[#00c471]", "bg-[#8b5cf6]", "bg-[#ff9f0a]"];
+
+// Stable color per Author name, like a ticker icon.
+function avatarColor(name: string): string {
+  let hash = 0;
+  for (const ch of name) hash = (hash * 31 + (ch.codePointAt(0) ?? 0)) >>> 0;
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
 
 async function request(method: string, path: string, body?: unknown) {
   try {
@@ -47,14 +59,31 @@ export default function Guestbook({ initialEntries }: { initialEntries: Entry[] 
 
   return (
     <>
+      <section className="rounded-3xl bg-surface px-6 py-6">
+        <p className="text-[14px] font-medium text-ink-3">지금까지 쌓인 방명록</p>
+        <p className="mt-1 text-[32px] font-bold tracking-tight tabular-nums">
+          {entries.length.toLocaleString("ko-KR")}
+          <span className="ml-1 text-[22px]">개</span>
+        </p>
+        <p className="mt-1 text-[14px] font-medium text-brand">누구나 남기고, 비밀번호로 지켜요</p>
+      </section>
+
       <CreateForm onCreated={() => refresh()} />
-      <section className="mt-8">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-500">방명록 글 {entries.length}개</h2>
-        {notice && <p className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">{notice}</p>}
+
+      <section className="mt-3 rounded-3xl bg-surface pb-2 pt-6">
+        <div className="flex items-center justify-between px-6 pb-2">
+          <h2 className="text-[18px] font-bold">전체 방명록</h2>
+          <span className="rounded-full bg-field px-3 py-1 text-[12px] font-semibold text-ink-2">최신순</span>
+        </div>
+        {notice && (
+          <p className="mx-6 mb-2 mt-2 rounded-xl bg-brand/15 px-4 py-3 text-[14px] font-medium text-[#6aa8ff]">
+            {notice}
+          </p>
+        )}
         {entries.length === 0 ? (
-          <p className="rounded-lg bg-white p-6 text-center text-sm text-zinc-500">아직 방명록 글이 없습니다.</p>
+          <p className="px-6 py-14 text-center text-[15px] text-ink-3">아직 방명록 글이 없습니다.</p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="divide-y divide-line">
             {entries.map((entry) => (
               <EntryItem
                 key={entry.id}
@@ -96,8 +125,9 @@ function CreateForm({ onCreated }: { onCreated: () => Promise<void> }) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-lg bg-white p-5 shadow-sm">
-      <div className="flex gap-3">
+    <form onSubmit={submit} className="mt-3 space-y-3 rounded-3xl bg-surface p-6">
+      <h2 className="mb-1 text-[18px] font-bold">방명록 남기기</h2>
+      <div className="flex gap-2">
         <input
           className={inputClass}
           placeholder="이름"
@@ -109,7 +139,7 @@ function CreateForm({ onCreated }: { onCreated: () => Promise<void> }) {
         <input
           className={inputClass}
           type="password"
-          placeholder="비밀번호 (4–20자)"
+          placeholder="비밀번호"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           minLength={LIMITS.password.min}
@@ -118,19 +148,20 @@ function CreateForm({ onCreated }: { onCreated: () => Promise<void> }) {
         />
       </div>
       <textarea
-        className={`${inputClass} min-h-24 resize-y`}
+        className={`${inputClass} min-h-28 resize-none`}
         placeholder="메시지를 남겨 주세요"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         maxLength={LIMITS.message.max}
         required
       />
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-red-600">{error}</p>
-        <button className={buttonClass} disabled={pending}>
-          {pending ? "등록 중…" : "등록"}
-        </button>
+      <div className="flex justify-end text-[12px] text-ink-3 tabular-nums">
+        {message.length}/{LIMITS.message.max}
       </div>
+      {error && <p className={errorClass}>{error}</p>}
+      <button className={`w-full py-4 text-[16px] ${buttonClass}`} disabled={pending}>
+        {pending ? "등록 중…" : "등록하기"}
+      </button>
     </form>
   );
 }
@@ -149,29 +180,43 @@ function EntryItem({
   onChanged: (notice?: string) => Promise<void>;
 }) {
   return (
-    <li className="rounded-lg bg-white p-4 shadow-sm">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="font-semibold">{entry.name}</span>
-        <span className="text-xs text-zinc-500">
-          {formatWrittenAt(entry.writtenAt)}
-          {entry.updatedAt && " (수정됨)"}
-        </span>
-      </div>
-      <p className="mt-2 whitespace-pre-wrap break-words text-sm">{entry.message}</p>
-      {mode === null ? (
-        <div className="mt-3 flex justify-end gap-3 text-xs text-zinc-500">
-          <button className="hover:text-zinc-900" onClick={() => onOpen("edit")}>
-            수정
-          </button>
-          <button className="hover:text-red-600" onClick={() => onOpen("delete")}>
-            삭제
-          </button>
+    <li className="px-6 py-4">
+      <div className="flex gap-3">
+        <div
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[15px] font-bold text-white ${avatarColor(entry.name)}`}
+          aria-hidden
+        >
+          {Array.from(entry.name)[0]}
         </div>
-      ) : mode === "edit" ? (
-        <EditForm entry={entry} onClose={onClose} onChanged={onChanged} />
-      ) : (
-        <DeleteForm id={entry.id} onClose={onClose} onChanged={onChanged} />
-      )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-3">
+            <span className="truncate text-[15px] font-semibold">{entry.name}</span>
+            {mode === null && (
+              <div className="flex shrink-0 gap-1.5">
+                <button
+                  className="rounded-lg bg-field px-2.5 py-1 text-[12px] font-semibold text-ink-2 transition hover:bg-line"
+                  onClick={() => onOpen("edit")}
+                >
+                  수정
+                </button>
+                <button
+                  className="rounded-lg bg-field px-2.5 py-1 text-[12px] font-semibold text-rise transition hover:bg-line"
+                  onClick={() => onOpen("delete")}
+                >
+                  삭제
+                </button>
+              </div>
+            )}
+          </div>
+          <p className="mt-0.5 text-[13px] text-ink-3 tabular-nums">
+            {formatWrittenAt(entry.writtenAt)}
+            {entry.updatedAt && " (수정됨)"}
+          </p>
+          <p className="mt-2 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-ink-2">{entry.message}</p>
+        </div>
+      </div>
+      {mode === "edit" && <EditForm entry={entry} onClose={onClose} onChanged={onChanged} />}
+      {mode === "delete" && <DeleteForm id={entry.id} onClose={onClose} onChanged={onChanged} />}
     </li>
   );
 }
@@ -207,9 +252,10 @@ function EditForm({
   }
 
   return (
-    <form onSubmit={submit} className="mt-3 space-y-2 border-t border-zinc-100 pt-3">
+    <form onSubmit={submit} className="mt-3 space-y-2 rounded-2xl bg-panel p-3">
+      <p className="px-1 text-[13px] font-semibold text-ink-2">메시지 수정</p>
       <textarea
-        className={`${inputClass} min-h-20 resize-y`}
+        className={`${inputClass} min-h-24 resize-none`}
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         maxLength={LIMITS.message.max}
@@ -225,14 +271,14 @@ function EditForm({
           onChange={(e) => setPassword(e.target.value)}
           required
         />
+        <button type="button" className={ghostButtonClass} onClick={onClose}>
+          취소
+        </button>
         <button className={`shrink-0 ${buttonClass}`} disabled={pending}>
           저장
         </button>
-        <button type="button" className="shrink-0 rounded-md px-3 py-2 text-sm text-zinc-500 hover:bg-zinc-100" onClick={onClose}>
-          취소
-        </button>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className={`px-1 ${errorClass}`}>{error}</p>}
     </form>
   );
 }
@@ -263,25 +309,29 @@ function DeleteForm({ id, onClose, onChanged }: { id: number; onClose: () => voi
   }
 
   return (
-    <form onSubmit={submit} className="mt-3 space-y-2 border-t border-zinc-100 pt-3">
+    <form onSubmit={submit} className="mt-3 space-y-2 rounded-2xl bg-panel p-3">
+      <p className="px-1 text-[13px] font-semibold text-ink-2">이 방명록 글을 삭제할까요?</p>
       <div className="flex gap-2">
         <input
           className={inputClass}
           type="password"
-          placeholder="비밀번호를 입력하면 삭제됩니다"
+          placeholder="비밀번호"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoFocus
           required
         />
-        <button className="shrink-0 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50" disabled={pending}>
-          삭제
-        </button>
-        <button type="button" className="shrink-0 rounded-md px-3 py-2 text-sm text-zinc-500 hover:bg-zinc-100" onClick={onClose}>
+        <button type="button" className={ghostButtonClass} onClick={onClose}>
           취소
         </button>
+        <button
+          className="shrink-0 rounded-xl bg-rise px-4 py-3 text-[15px] font-semibold text-white transition hover:brightness-110 active:scale-[0.98] disabled:opacity-40"
+          disabled={pending}
+        >
+          삭제
+        </button>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className={`px-1 ${errorClass}`}>{error}</p>}
     </form>
   );
 }

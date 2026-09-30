@@ -1,19 +1,29 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f4f4f5;
-  --foreground: #18181b;
+/* Dark, securities-app style palette */
+@theme {
+  --color-canvas: #17171c;
+  --color-surface: #202027;
+  --color-field: #2c2c35;
+  --color-panel: #1a1a20;
+  --color-line: #2e2e38;
+  --color-ink: #ffffff;
+  --color-ink-2: #c3c3c8;
+  --color-ink-3: #8b8b96;
+  --color-brand: #3182f6;
+  --color-brand-strong: #1b64da;
+  --color-rise: #f04452;
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+    "Malgun Gothic", sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
 }
