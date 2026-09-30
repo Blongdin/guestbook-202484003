@@ -51,5 +51,29 @@ check("3. GET -> 200 array", list.status === 200 && Array.isArray(list.json), li
 check("3. new entry is first", list.json?.[0]?.id === id, list.json?.[0]);
 check("3. list has no password", !hasHash(list.json));
 
+let deleted = false;
+try {
+  // 6. wrong password cannot delete
+  const wrongDelete = await call("DELETE", `/api/entries/${id}`, { password: "wrong-pass" });
+  check("6. DELETE wrong password -> 403", wrongDelete.status === 403 && typeof wrongDelete.json?.error === "string", wrongDelete);
+  const stillThere = await call("GET", "/api/entries");
+  check("6. entry still exists", stillThere.json?.some?.((e) => e.id === id));
+
+  // 7. right password deletes
+  const del = await call("DELETE", `/api/entries/${id}`, { password: PASSWORD });
+  deleted = check("7. DELETE right password -> 200", del.status === 200 && del.json?.ok === true, del);
+
+  // 8. entry is gone
+  const after = await call("GET", "/api/entries");
+  check("8. entry gone from list", Array.isArray(after.json) && !after.json.some((e) => e.id === id));
+  const again = await call("DELETE", `/api/entries/${id}`, { password: PASSWORD });
+  check("8. DELETE again -> 404", again.status === 404, again);
+} finally {
+  // Local and production share one DB: always try to remove the smoke entry.
+  if (id !== undefined && !deleted) {
+    await call("DELETE", `/api/entries/${id}`, { password: PASSWORD }).catch(() => {});
+  }
+}
+
 console.log(failed ? "smoke FAILED" : "smoke passed");
 process.exit(failed ? 1 : 0);

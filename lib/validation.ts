@@ -32,3 +32,18 @@ export function validateCreate(body: unknown): Result<{ name: string; message: s
   if (!password.ok) return password;
   return { ok: true, value: { name: name.value, message: message.value, password: password.value } };
 }
+
+export function validateDelete(body: unknown): Result<{ password: string }> {
+  const password = fields(body).password;
+  if (typeof password !== "string" || password.trim().length === 0) {
+    return { ok: false, error: FIELDS.password.required };
+  }
+  return { ok: true, value: { password } };
+}
+
+// Route param -> positive integer id, or null (treated as "not found").
+export function parseId(raw: string): number | null {
+  if (!/^[1-9]\d{0,9}$/.test(raw)) return null;
+  const id = Number(raw);
+  return id <= 2147483647 ? id : null;
+}

@@ -1,5 +1,5 @@
 import { sql } from "./db";
-import { hashPassword } from "./password";
+import { hashPassword, verifyPassword } from "./password";
 
 export type Entry = {
   id: number;
@@ -8,6 +8,8 @@ export type Entry = {
   createdAt: string;
   updatedAt: string | null;
 };
+
+export type Outcome<T> = { status: "ok"; value: T } | { status: "not_found" } | { status: "wrong_password" };
 
 type Row = {
   id: number;
@@ -44,4 +46,18 @@ export async function createEntry(input: { name: string; message: string; passwo
     RETURNING id, name, message, created_at, updated_at
   `) as Row[];
   return toEntry(row);
+}
+
+// Loads the stored hash for id and checks the Entry Password before any change.
+async function authorize(id: number, password: string): Promise<"ok" | "not_found" | "wrong_password"> {
+  const [row] = (await sql`SELECT password_hash FROM entries WHERE id = ${id}`) as { password_hash: string }[];
+  if (!row) return "not_found";
+  return (await verifyPassword(password, row.password_hash)) ? "ok" : "wrong_password";
+}
+
+export async function deleteEntry(id: number, password: string): Promise<Outcome<null>> {
+  const auth = await authorize(id, password);
+  if (auth !== "ok") return { status: auth };
+  const rows = await sql`DELETE FROM entries WHERE id = ${id} RETURNING id`;
+  return rows.length === 0 ? { status: "not_found" } : { status: "ok", value: null };
 }

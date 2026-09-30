@@ -29,25 +29,41 @@ function errorOf(json: unknown): string {
   return typeof error === "string" ? error : "잠시 후 다시 시도해 주세요.";
 }
 
+type Mode = "delete";
+type Open = { id: number; mode: Mode } | null;
+
 export default function Guestbook({ initialEntries }: { initialEntries: Entry[] }) {
   const [entries, setEntries] = useState(initialEntries);
+  // Only one inline form is open at a time across the whole list.
+  const [open, setOpen] = useState<Open>(null);
+  const [notice, setNotice] = useState("");
 
-  async function refresh() {
+  // notice is shown above the list, e.g. when the Entry it came from has vanished.
+  async function refresh(message = "") {
+    setNotice(message);
     const { status, json } = await request("GET", "/api/entries");
     if (status === 200) setEntries(json as Entry[]);
   }
 
   return (
     <>
-      <CreateForm onCreated={refresh} />
+      <CreateForm onCreated={() => refresh()} />
       <section className="mt-8">
         <h2 className="mb-3 text-sm font-semibold text-zinc-500">방명록 글 {entries.length}개</h2>
+        {notice && <p className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">{notice}</p>}
         {entries.length === 0 ? (
           <p className="rounded-lg bg-white p-6 text-center text-sm text-zinc-500">아직 방명록 글이 없습니다.</p>
         ) : (
           <ul className="space-y-3">
             {entries.map((entry) => (
-              <EntryItem key={entry.id} entry={entry} />
+              <EntryItem
+                key={entry.id}
+                entry={entry}
+                mode={open?.id === entry.id ? open.mode : null}
+                onOpen={(mode) => setOpen({ id: entry.id, mode })}
+                onClose={() => setOpen(null)}
+                onChanged={refresh}
+              />
             ))}
           </ul>
         )}
@@ -119,7 +135,19 @@ function CreateForm({ onCreated }: { onCreated: () => Promise<void> }) {
   );
 }
 
-function EntryItem({ entry }: { entry: Entry }) {
+function EntryItem({
+  entry,
+  mode,
+  onOpen,
+  onClose,
+  onChanged,
+}: {
+  entry: Entry;
+  mode: Mode | null;
+  onOpen: (mode: Mode) => void;
+  onClose: () => void;
+  onChanged: (notice?: string) => Promise<void>;
+}) {
   return (
     <li className="rounded-lg bg-white p-4 shadow-sm">
       <div className="flex items-baseline justify-between gap-3">
@@ -130,6 +158,64 @@ function EntryItem({ entry }: { entry: Entry }) {
         </span>
       </div>
       <p className="mt-2 whitespace-pre-wrap break-words text-sm">{entry.message}</p>
+      {mode === null ? (
+        <div className="mt-3 flex justify-end gap-3 text-xs text-zinc-500">
+          <button className="hover:text-red-600" onClick={() => onOpen("delete")}>
+            삭제
+          </button>
+        </div>
+      ) : (
+        <DeleteForm id={entry.id} onClose={onClose} onChanged={onChanged} />
+      )}
     </li>
+  );
+}
+
+function DeleteForm({ id, onClose, onChanged }: { id: number; onClose: () => void; onChanged: (notice?: string) => Promise<void> }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setPending(true);
+    setError("");
+    const { status, json } = await request("DELETE", `/api/entries/${id}`, { password });
+    setPending(false);
+    if (status === 200) {
+      onClose();
+      await onChanged();
+      return;
+    }
+    if (status === 404) {
+      onClose();
+      await onChanged(errorOf(json));
+      return;
+    }
+    setError(errorOf(json));
+    setPassword("");
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-3 space-y-2 border-t border-zinc-100 pt-3">
+      <div className="flex gap-2">
+        <input
+          className={inputClass}
+          type="password"
+          placeholder="비밀번호를 입력하면 삭제됩니다"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoFocus
+          required
+        />
+        <button className="shrink-0 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50" disabled={pending}>
+          삭제
+        </button>
+        <button type="button" className="shrink-0 rounded-md px-3 py-2 text-sm text-zinc-500 hover:bg-zinc-100" onClick={onClose}>
+          취소
+        </button>
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </form>
   );
 }
