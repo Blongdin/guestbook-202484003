@@ -33,7 +33,7 @@ export function validateCreate(body: unknown): Result<{ name: string; message: s
   return { ok: true, value: { name: name.value, message: message.value, password: password.value } };
 }
 
-// Edit/delete only need a non-empty password; a wrong one is a 403, not a 400.
+// Delete only needs a non-empty password; a wrong one is a 403, not a 400.
 function requiredPassword(value: unknown): Result<string> {
   if (typeof value !== "string" || value.trim().length === 0) {
     return { ok: false, error: FIELDS.password.required };
@@ -45,7 +45,7 @@ export function validateUpdate(body: unknown): Result<{ message: string; passwor
   const b = fields(body);
   const message = check("message", b.message);
   if (!message.ok) return message;
-  const password = requiredPassword(b.password);
+  const password = check("password", b.password);
   if (!password.ok) return password;
   return { ok: true, value: { message: message.value, password: password.value } };
 }

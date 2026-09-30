@@ -153,7 +153,7 @@ function EntryItem({
       <div className="flex items-baseline justify-between gap-3">
         <span className="font-semibold">{entry.name}</span>
         <span className="text-xs text-zinc-500">
-          {formatWrittenAt(entry.createdAt)}
+          {formatWrittenAt(entry.writtenAt)}
           {entry.updatedAt && " (수정됨)"}
         </span>
       </div>

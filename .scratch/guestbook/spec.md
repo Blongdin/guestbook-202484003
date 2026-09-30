@@ -120,7 +120,7 @@ Status: ready-for-agent
 방명록 글 응답 형식:
 
 ```json
-{ "id": 1, "name": "김동현", "message": "안녕하세요", "createdAt": "2026-09-30T05:05:00.000Z", "updatedAt": null }
+{ "id": 1, "name": "김동현", "message": "안녕하세요", "writtenAt": "2026-09-30T05:05:00.000Z", "updatedAt": null }
 ```
 
 | 메서드 · 경로 | 요청 본문 | 성공 | 실패 |

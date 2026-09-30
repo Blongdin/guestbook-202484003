@@ -5,7 +5,7 @@ export type Entry = {
   id: number;
   name: string;
   message: string;
-  createdAt: string;
+  writtenAt: string;
   updatedAt: string | null;
 };
 
@@ -24,7 +24,7 @@ function toEntry(row: Row): Entry {
     id: row.id,
     name: row.name,
     message: row.message,
-    createdAt: new Date(row.created_at).toISOString(),
+    writtenAt: new Date(row.created_at).toISOString(),
     updatedAt: row.updated_at === null ? null : new Date(row.updated_at).toISOString(),
   };
 }

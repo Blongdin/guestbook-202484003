@@ -31,15 +31,22 @@ const hasHash = (value) =>
 
 console.log(`smoke: ${BASE}`);
 
-// 1. empty name is rejected
-const bad = await call("POST", "/api/entries", { name: "   ", message: "hi", password: PASSWORD });
-check("1. POST empty name -> 400", bad.status === 400 && typeof bad.json?.error === "string", bad);
+// Every Entry this run creates, so the finally block can remove it even after a failure.
+const createdIds = new Set();
+async function post(body) {
+  const res = await call("POST", "/api/entries", body);
+  if (Number.isInteger(res.json?.id)) createdIds.add(res.json.id);
+  return res;
+}
 
 let id;
-let deleted = false;
 try {
+  // 1. empty name is rejected
+  const bad = await post({ name: "   ", message: "hi", password: PASSWORD });
+  check("1. POST empty name -> 400", bad.status === 400 && typeof bad.json?.error === "string", bad);
+
   // 2. create
-  const created = await call("POST", "/api/entries", {
+  const created = await post({
     name: "smoke",
     message: `smoke test ${new Date().toISOString()}`,
     password: PASSWORD,
@@ -69,9 +76,11 @@ try {
     patch,
   );
   check("5. PATCH response has no password", !hasHash(patch.json), patch.json);
-  check("5. createdAt unchanged", patch.json?.createdAt === created.json?.createdAt, patch.json);
+  check("5. writtenAt unchanged", patch.json?.writtenAt !== undefined && patch.json?.writtenAt === created.json?.writtenAt, patch.json);
   const emptyPatch = await call("PATCH", `/api/entries/${id}`, { message: "   ", password: PASSWORD });
   check("5. PATCH empty message -> 400", emptyPatch.status === 400, emptyPatch);
+  const shortPatch = await call("PATCH", `/api/entries/${id}`, { message: "short", password: "abc" });
+  check("5. PATCH 3-char password -> 400", shortPatch.status === 400 && typeof shortPatch.json?.error === "string", shortPatch);
 
   // 6. wrong password cannot delete
   const wrongDelete = await call("DELETE", `/api/entries/${id}`, { password: "wrong-pass" });
@@ -81,17 +90,20 @@ try {
 
   // 7. right password deletes
   const del = await call("DELETE", `/api/entries/${id}`, { password: PASSWORD });
-  deleted = check("7. DELETE right password -> 200", del.status === 200 && del.json?.ok === true, del);
+  if (check("7. DELETE right password -> 200", del.status === 200 && del.json?.ok === true, del)) createdIds.delete(id);
 
   // 8. entry is gone
   const after = await call("GET", "/api/entries");
   check("8. entry gone from list", Array.isArray(after.json) && !after.json.some((e) => e.id === id));
   const again = await call("DELETE", `/api/entries/${id}`, { password: PASSWORD });
   check("8. DELETE again -> 404", again.status === 404, again);
+} catch (err) {
+  check("smoke ran without throwing", false, String(err));
 } finally {
-  // Local and production share one DB: always try to remove the smoke entry.
-  if (id !== undefined && !deleted) {
-    await call("DELETE", `/api/entries/${id}`, { password: PASSWORD }).catch(() => {});
+  // Local and production share one DB: always try to remove what this run created.
+  for (const leftover of createdIds) {
+    const res = await call("DELETE", `/api/entries/${leftover}`, { password: PASSWORD }).catch(() => null);
+    console.log(`  cleanup entry ${leftover} -> ${res?.status ?? "error"}`);
   }
 }
 
