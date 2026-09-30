@@ -1,12 +1,14 @@
 {
-  "name": "test1",
+  "name": "guestbook-202484003",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:init": "node --env-file=.env.local scripts/db-init.mjs",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
