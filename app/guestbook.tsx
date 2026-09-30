@@ -29,7 +29,7 @@ function errorOf(json: unknown): string {
   return typeof error === "string" ? error : "잠시 후 다시 시도해 주세요.";
 }
 
-type Mode = "delete";
+type Mode = "edit" | "delete";
 type Open = { id: number; mode: Mode } | null;
 
 export default function Guestbook({ initialEntries }: { initialEntries: Entry[] }) {
@@ -160,14 +160,80 @@ function EntryItem({
       <p className="mt-2 whitespace-pre-wrap break-words text-sm">{entry.message}</p>
       {mode === null ? (
         <div className="mt-3 flex justify-end gap-3 text-xs text-zinc-500">
+          <button className="hover:text-zinc-900" onClick={() => onOpen("edit")}>
+            수정
+          </button>
           <button className="hover:text-red-600" onClick={() => onOpen("delete")}>
             삭제
           </button>
         </div>
+      ) : mode === "edit" ? (
+        <EditForm entry={entry} onClose={onClose} onChanged={onChanged} />
       ) : (
         <DeleteForm id={entry.id} onClose={onClose} onChanged={onChanged} />
       )}
     </li>
+  );
+}
+
+function EditForm({
+  entry,
+  onClose,
+  onChanged,
+}: {
+  entry: Entry;
+  onClose: () => void;
+  onChanged: (notice?: string) => Promise<void>;
+}) {
+  const [message, setMessage] = useState(entry.message);
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setPending(true);
+    setError("");
+    const { status, json } = await request("PATCH", `/api/entries/${entry.id}`, { message, password });
+    setPending(false);
+    if (status === 200 || status === 404) {
+      onClose();
+      await onChanged(status === 404 ? errorOf(json) : "");
+      return;
+    }
+    // Keep the new message; only the password has to be retyped.
+    setError(errorOf(json));
+    setPassword("");
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-3 space-y-2 border-t border-zinc-100 pt-3">
+      <textarea
+        className={`${inputClass} min-h-20 resize-y`}
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        maxLength={LIMITS.message.max}
+        autoFocus
+        required
+      />
+      <div className="flex gap-2">
+        <input
+          className={inputClass}
+          type="password"
+          placeholder="비밀번호"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        <button className={`shrink-0 ${buttonClass}`} disabled={pending}>
+          저장
+        </button>
+        <button type="button" className="shrink-0 rounded-md px-3 py-2 text-sm text-zinc-500 hover:bg-zinc-100" onClick={onClose}>
+          취소
+        </button>
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </form>
   );
 }
 

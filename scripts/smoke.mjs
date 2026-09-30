@@ -53,6 +53,25 @@ check("3. list has no password", !hasHash(list.json));
 
 let deleted = false;
 try {
+  // 4. wrong password cannot update
+  const original = created.json?.message;
+  const wrongPatch = await call("PATCH", `/api/entries/${id}`, { message: "hacked", password: "wrong-pass" });
+  check("4. PATCH wrong password -> 403", wrongPatch.status === 403 && typeof wrongPatch.json?.error === "string", wrongPatch);
+  const unchanged = await call("GET", "/api/entries");
+  check("4. message unchanged", unchanged.json?.find?.((e) => e.id === id)?.message === original);
+
+  // 5. right password updates the message
+  const patch = await call("PATCH", `/api/entries/${id}`, { message: "  smoke edited  ", password: PASSWORD });
+  check(
+    "5. PATCH right password -> 200",
+    patch.status === 200 && patch.json?.message === "smoke edited" && patch.json?.updatedAt !== null,
+    patch,
+  );
+  check("5. PATCH response has no password", !hasHash(patch.json), patch.json);
+  check("5. createdAt unchanged", patch.json?.createdAt === created.json?.createdAt, patch.json);
+  const emptyPatch = await call("PATCH", `/api/entries/${id}`, { message: "   ", password: PASSWORD });
+  check("5. PATCH empty message -> 400", emptyPatch.status === 400, emptyPatch);
+
   // 6. wrong password cannot delete
   const wrongDelete = await call("DELETE", `/api/entries/${id}`, { password: "wrong-pass" });
   check("6. DELETE wrong password -> 403", wrongDelete.status === 403 && typeof wrongDelete.json?.error === "string", wrongDelete);

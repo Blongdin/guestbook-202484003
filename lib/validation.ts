@@ -33,12 +33,27 @@ export function validateCreate(body: unknown): Result<{ name: string; message: s
   return { ok: true, value: { name: name.value, message: message.value, password: password.value } };
 }
 
-export function validateDelete(body: unknown): Result<{ password: string }> {
-  const password = fields(body).password;
-  if (typeof password !== "string" || password.trim().length === 0) {
+// Edit/delete only need a non-empty password; a wrong one is a 403, not a 400.
+function requiredPassword(value: unknown): Result<string> {
+  if (typeof value !== "string" || value.trim().length === 0) {
     return { ok: false, error: FIELDS.password.required };
   }
-  return { ok: true, value: { password } };
+  return { ok: true, value };
+}
+
+export function validateUpdate(body: unknown): Result<{ message: string; password: string }> {
+  const b = fields(body);
+  const message = check("message", b.message);
+  if (!message.ok) return message;
+  const password = requiredPassword(b.password);
+  if (!password.ok) return password;
+  return { ok: true, value: { message: message.value, password: password.value } };
+}
+
+export function validateDelete(body: unknown): Result<{ password: string }> {
+  const password = requiredPassword(fields(body).password);
+  if (!password.ok) return password;
+  return { ok: true, value: { password: password.value } };
 }
 
 // Route param -> positive integer id, or null (treated as "not found").

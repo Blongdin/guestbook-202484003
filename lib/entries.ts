@@ -55,6 +55,17 @@ async function authorize(id: number, password: string): Promise<"ok" | "not_foun
   return (await verifyPassword(password, row.password_hash)) ? "ok" : "wrong_password";
 }
 
+export async function updateEntryMessage(id: number, message: string, password: string): Promise<Outcome<Entry>> {
+  const auth = await authorize(id, password);
+  if (auth !== "ok") return { status: auth };
+  const [row] = (await sql`
+    UPDATE entries SET message = ${message}, updated_at = now()
+    WHERE id = ${id}
+    RETURNING id, name, message, created_at, updated_at
+  `) as Row[];
+  return row ? { status: "ok", value: toEntry(row) } : { status: "not_found" };
+}
+
 export async function deleteEntry(id: number, password: string): Promise<Outcome<null>> {
   const auth = await authorize(id, password);
   if (auth !== "ok") return { status: auth };
